@@ -1,9 +1,13 @@
 #pragma once
 #include "Object.h"
+#include <vector>
+using namespace std;
 
 class Time;
 class Controls;
 class GraphicsManager;
+class Entity;
+class Component;
 
 class SubState :
 	public Object
@@ -16,9 +20,13 @@ public:
 	void render(GraphicsManager * graphics);
 	bool isPopRequested();
 	virtual SubState * getNextState();
+	void getEntitiesWithComponentOfType(vector<Entity *> * foundEntities, char * type);
+	void getComponentsOfType(vector<Component *> * foundComponents, char * type);
+	void addEntity(Entity * entity);
 protected:
 	void RequestPop();
 private:
+	vector<Entity*> entities;
 	bool requestedPop;
 };
 

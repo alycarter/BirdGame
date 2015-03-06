@@ -19,7 +19,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	//create a game
 	Game game;
 	//play the game withe the window size and name info
-	game.play(hInstance ,new MainGame(), L"Bird Game", 100,100,800, 600);
+	game.play(hInstance ,new MainGame(), L"Bird Game", 800, 600);
 	if (DEBUG)
 	{
 		fclose(stream);

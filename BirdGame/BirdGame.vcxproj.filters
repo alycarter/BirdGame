@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{33a0e282-48f4-4424-a05e-c107fac60540}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="obj">
+      <UniqueIdentifier>{29f20f12-a655-45fd-b37b-ff23ccecc002}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BirdGame.cpp">
@@ -54,6 +60,30 @@
     <ClCompile Include="PauseScreen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Entity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Component.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GraphicsResource.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ObjLoader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="InputLayoutReader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Object.h">
@@ -92,5 +122,69 @@
     <ClInclude Include="PauseScreen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Entity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Component.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsResource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Texture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ObjLoader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InputLayoutReader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\light.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\negative.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="obj\ant.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\cone.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\cube.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\knot.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\sphere.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\spit.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\suzane.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\teapot.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\torus.obj">
+      <Filter>obj</Filter>
+    </Object>
+    <Object Include="obj\worker.obj">
+      <Filter>obj</Filter>
+    </Object>
   </ItemGroup>
 </Project>

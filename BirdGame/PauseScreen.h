@@ -4,9 +4,11 @@ class PauseScreen :
 	public SubState
 {
 public:
-	PauseScreen();
+	PauseScreen(bool * quitSceneFlag);
 	~PauseScreen();
 	void onUpdate(Time * time, Controls * controls);
 	SubState * getNextState();
+private:
+	bool * quitScene;
 };
 

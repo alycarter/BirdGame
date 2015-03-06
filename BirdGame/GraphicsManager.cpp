@@ -1,35 +1,74 @@
 #include "GraphicsManager.h"
+#include "Window.h"
+#include "Texture.h"
+#include "Shader.h"
+#include "Mesh.h"
+#include "ObjLoader.h"
+#include "InputLayoutReader.h"
+#include <D3Dcompiler.h>
+#include <wincodec.h>
 
 // include the Direct3D Library file
 #pragma comment (lib, "d3d11.lib")
-#pragma comment (lib, "d3dx11.lib")
-#pragma comment (lib, "d3dx10.lib")
-
+#pragma comment (lib, "D3DCompiler.lib")
 
 GraphicsManager::GraphicsManager()
 {
+	clearColor = Fuchsia;
+	swapchain = NULL;
+	dev = NULL;
+	devcon = NULL;
+	backBuffer = NULL;
+	depthBuffer = NULL;
+	vertexBuffer = NULL;
+	constantBuffer = NULL;
+	indexBuffer = NULL;
+	instanceBuffer = NULL;
+	textureResource = NULL;
+	textureShaderView = NULL;
+	factory = NULL;
+	screenResolution.x = 0;
+	screenResolution.y = 0;
+	textureResolution.x = 0;
+	textureResolution.y = 0;
+	textureBufferSize = 16;
+	constantBufferSize = 16;
+	instanceBufferSize = 16;
+	vertexBufferSize = 16;
+	indexBufferSize = 16;
 }
-
 
 GraphicsManager::~GraphicsManager()
 {
+
 }
 
-void GraphicsManager::create(Window * window, unsigned int textureWidthIn, unsigned int textureHeightIn, unsigned int textureSlotsIn)
+void GraphicsManager::create(Window * window, unsigned int textureWidth, unsigned int textureHeight)
 {
+	textureResolution.x = (float)textureWidth;
+	textureResolution.y = (float)textureHeight;
 	//set up the directx contexts
 	createDirectXContext(window);
 	//create the render buffers
 	createRenderTarget();
+	createDepthBuffer();
 	//set up the viewport
 	setUpViewPort();
+	resizeConstantBuffer();
+	resizeIndexBuffer();
+	resizeInstanceBuffer();
+	resizeTextureArray();
+	resizeVertexBuffer();
+	//initialize the thing that makes the factory
+	CoInitialize(NULL);
+	//create the imaging factory
+	CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER, __uuidof(IWICImagingFactory), (LPVOID *)&factory);
 }
 
 void GraphicsManager::createDirectXContext(Window * window)
 {
 	//set the resolution of the window
-	resolutionX = window->getWidth();
-	resolutionY = window->getHeight();
+	screenResolution = XMFLOAT2((float)window->getWidth(), (float)window->getHeight());
 	// create a struct to hold information about the swap chain
     DXGI_SWAP_CHAIN_DESC scd;
     // clear out the struct for use
@@ -42,9 +81,16 @@ void GraphicsManager::createDirectXContext(Window * window)
     scd.SampleDesc.Count = 4;                               // how many multisamples
     scd.Windowed = TRUE;                                    // windowed/full-screen mode
     // create a device, device context and swap chain using the information in the scd struct
-    D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, NULL, NULL, NULL, D3D11_SDK_VERSION, &scd, &swapchain, &dev, NULL, &devcon);
+	D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, D3D11_CREATE_DEVICE_DEBUG, NULL, NULL, D3D11_SDK_VERSION, &scd, &swapchain, &dev, NULL, &devcon);
+	swapchain->ResizeBuffers(1, screenResolution.x, screenResolution.y, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
 	// select which primtive type we are using
-	devcon->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	devcon->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+void GraphicsManager::swapBuffers()
+{
+	// switch the back buffer and the front buffer
+	swapchain->Present(0, 0);
 }
 
 void GraphicsManager::createRenderTarget()
@@ -53,10 +99,10 @@ void GraphicsManager::createRenderTarget()
 	ID3D11Texture2D *pBackBuffer;
 	swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
 	// use the back buffer address to create the render target
-	dev->CreateRenderTargetView(pBackBuffer, NULL, &backbuffer);
+	dev->CreateRenderTargetView(pBackBuffer, NULL, &backBuffer);
 	pBackBuffer->Release();
 	// set the render target as the back buffer
-	devcon->OMSetRenderTargets(1, &backbuffer, NULL);
+	devcon->OMSetRenderTargets(1, &backBuffer, NULL);
 }
 
 void GraphicsManager::setUpViewPort()
@@ -66,8 +112,8 @@ void GraphicsManager::setUpViewPort()
 	ZeroMemory(&viewport, sizeof(D3D11_VIEWPORT));
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
-	viewport.Width = (float)resolutionX;
-	viewport.Height = (float)resolutionY;
+	viewport.Width = screenResolution.x;
+	viewport.Height = screenResolution.y;
 	viewport.MinDepth = 0;    // the closest an object can be on the depth buffer is 0.0
 	viewport.MaxDepth = 1;    // the farthest an object can be on the depth buffer is 1.0
 	devcon->RSSetViewports(1, &viewport);
@@ -76,15 +122,486 @@ void GraphicsManager::setUpViewPort()
 void GraphicsManager::clearBuffer()
 {
 	//clear the depth and render buffers
-	devcon->ClearRenderTargetView(backbuffer, *clearColor);
-	devcon->ClearDepthStencilView(zbuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
+	devcon->ClearRenderTargetView(backBuffer, clearColor);
+	devcon->ClearDepthStencilView(depthBuffer, D3D11_CLEAR_DEPTH, 1.0f, 0);
+}
+
+void GraphicsManager::createDepthBuffer()
+{
+	// create the depth buffer texture
+	D3D11_TEXTURE2D_DESC texd;
+	ZeroMemory(&texd, sizeof(texd));
+	texd.Width = screenResolution.x;
+	texd.Height = screenResolution.y;
+	texd.ArraySize = 1;
+	texd.MipLevels = 1;
+	texd.SampleDesc.Count = 4;
+	texd.Format = DXGI_FORMAT_D32_FLOAT;
+	texd.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	ID3D11Texture2D *pDepthBuffer;
+	dev->CreateTexture2D(&texd, NULL, &pDepthBuffer);
+	// create the depth buffer
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvd;
+	ZeroMemory(&dsvd, sizeof(dsvd));
+	dsvd.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvd.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
+	dev->CreateDepthStencilView(pDepthBuffer, &dsvd, &depthBuffer);
+	pDepthBuffer->Release();
+	D3D11_DEPTH_STENCIL_DESC dsDesc;
+	// Depth test parameters
+	dsDesc.DepthEnable = true;
+	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	// Stencil test parameters
+	dsDesc.StencilEnable = false;
+	// Create depth stencil state
+	ID3D11DepthStencilState * pDSState;
+	dev->CreateDepthStencilState(&dsDesc, &pDSState);
+	devcon->OMSetDepthStencilState(pDSState, 1);
+	devcon->OMSetRenderTargets(1, &backBuffer, depthBuffer);
 }
 
 void GraphicsManager::setClearColor(float r, float g, float b, float a)
 {
 	//set the clear colour channels
-	clearColor->r = r;
-	clearColor->g = g;
-	clearColor->b = b;
-	clearColor->a = a;
+	clearColor.f[0] = r;
+	clearColor.f[1] = g;
+	clearColor.f[2] = b;
+	clearColor.f[3] = a;
+}
+
+unsigned int GraphicsManager::getGraphicsResourceID(RESOURCE_TYPE resourceType, char * resourceName)
+{
+	for (unsigned int i = 0; i < graphicsResources.size(); i++)
+	{
+		if (graphicsResources.at(i) != NULL && graphicsResources.at(i)->getType() == resourceType && strcmp(graphicsResources.at(i)->getName(), resourceName) == 0)
+		{
+			return i;
+		}
+	}
+	printf(resourceName);
+	printf(" not found \n");
+	return 0;
+}
+
+unsigned int GraphicsManager::getTextureID(unsigned int textureResourceID)
+{
+	if (graphicsResources.at(textureResourceID)->getType() == RESOURCE_TYPE_TEXTURE)
+	{
+		return ((Texture*)graphicsResources.at(textureResourceID))->getTextureIndex();
+	} 
+	printf(graphicsResources.at(textureResourceID)->getName());
+	printf(" is not a texture \n");
+	return 0;
+}
+
+void GraphicsManager::bindShader(unsigned int shaderResourceID)
+{
+	GraphicsResource * resource = graphicsResources.at(shaderResourceID);
+	if (resource->getType() == RESOURCE_TYPE_SHADER)
+	{
+		Shader * shader = (Shader*)resource;
+		//set the vertex shader
+		devcon->VSSetShader(shader->getVertexShader(), 0, 0);
+		//set the pixel shader
+		devcon->PSSetShader(shader->getPixelShader(), 0, 0);
+		devcon->IASetInputLayout(shader->getInput());
+	}
+	else
+	{
+		printf(resource->getName());
+		printf(" is not a shader \n");
+	}
+}
+
+unsigned int GraphicsManager::createMeshResourceFromFile(char * resourceName, char * file, State * boundState)
+{
+	ObjLoader ldr;
+	vector<float> vertex;
+	vector<unsigned int> index;
+	ldr.loadObj(file, &vertex, &index, true);
+	Mesh * mesh = new Mesh();
+	unsigned int id = getFreeGraphicsResourceSlot();
+	mesh->setIndexCount(index.size());
+	mesh->setVertexCount(vertex.size() / 8);
+	fitMeshInFreeSpace(mesh);
+	D3D11_BOX box = {0,0,0,0,1,1};
+	//copy the vertex data into the buffer
+	box.left = mesh->getVertexOffset();
+	box.right = box.left + (vertex.size() * sizeof(float));
+	devcon->UpdateSubresource(vertexBuffer, 0, &box, &vertex.at(0), 0, 0);
+	//copy our index data into the buffer
+	box.left = mesh->getIndexOffset();
+	box.right = box.left + (index.size() * sizeof(unsigned int));
+	devcon->UpdateSubresource(indexBuffer, 0, &box, &index.at(0), 0, 0);
+	graphicsResources.at(id) = mesh;
+	return id;
+}
+
+unsigned int GraphicsManager::createTextureResourceFromFile(char * resourceName, LPWSTR file, State * boundState)
+{
+	//create the decoder from the factory
+	IWICBitmapDecoder * decoder;
+	factory->CreateDecoderFromFilename(file, NULL, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
+	//get the frame from the decoder
+	IWICBitmapFrameDecode * frame;
+	decoder->GetFrame(0, &frame);
+	//our textures will use 4 channels rgba
+	UINT channels = 4;
+	//bytes in one row
+	UINT stride = (int)textureResolution.x * channels;
+	//bytes in one texture
+	UINT size = stride * (int)textureResolution.y;
+	BYTE * textureData = new BYTE[size];
+	//create a scaler from the frame so we can fit it to the resource size
+	IWICBitmapScaler * scalar;
+	factory->CreateBitmapScaler(&scalar);
+	scalar->Initialize(frame, (int)textureResolution.x, (int)textureResolution.y, WICBitmapInterpolationModeNearestNeighbor);
+	//get the pixels that make up our texture
+	scalar->CopyPixels(NULL, stride, size, textureData);
+	//clean up file loaders
+	frame->Release();
+	decoder->Release();
+	unsigned int id = getFreeGraphicsResourceSlot();
+	Texture * texture = new Texture();
+	texture->setTexture(getFreeTextureSlot(), (char *)textureData);
+	writeTexture(texture);
+	graphicsResources.at(id) = texture;
+	return id;
+}
+
+void GraphicsManager::writeTexture(Texture * texture)
+{
+	//our textures will use 4 channels rgba
+	UINT channels = 4;
+	//bytes in one row
+	UINT stride = (int)textureResolution.x * channels;
+	//bytes in one texture
+	UINT size = stride * (int)textureResolution.y;
+	//put our texture into the subresourse in the texture buffer
+	devcon->UpdateSubresource(textureResource, texture->getTextureIndex(), NULL, texture->getTextureData(), stride, size);
+}
+
+unsigned int GraphicsManager::createShaderResourceFromFile(char * resourceName, LPWSTR file, char * fileName, State * boundState)
+{
+	// load and compile the two shaders
+	ID3D10Blob *VS, *PS;
+	D3DCompileFromFile(file, NULL, NULL, "VShader", "vs_4_0", 0, 0, &VS, NULL);
+	D3DCompileFromFile(file, NULL, NULL, "PShader", "ps_4_0", 0, 0, &PS, NULL);
+	ID3D11VertexShader * pVS;
+	ID3D11PixelShader * pPS;
+	// encapsulate both shaders into shader objects
+	dev->CreateVertexShader(VS->GetBufferPointer(), VS->GetBufferSize(), NULL, &pVS);
+	dev->CreatePixelShader(PS->GetBufferPointer(), PS->GetBufferSize(), NULL, &pPS);
+	// read layouts
+	InputLayoutReader rdr;
+	vector<D3D11_INPUT_ELEMENT_DESC> layout;
+	rdr.parseInputLayout(fileName, &layout);
+	ID3D11InputLayout * input;
+	dev->CreateInputLayout(&layout.at(0), layout.size(), VS->GetBufferPointer(), VS->GetBufferSize(), &input);
+	//create a new shader object and add our shaders to it
+	Shader * shader = new Shader();
+	shader->setShader(pVS, pPS, input);
+	//add our shader to the list of shaders
+	unsigned int id = getFreeGraphicsResourceSlot();
+	graphicsResources.at(id) = shader;
+	//release the blob objects
+	VS->Release();
+	PS->Release();
+	//return the shader id
+	return id;
+}
+
+void GraphicsManager::setConstantBufferData(void * data, unsigned int size)
+{
+	//resize the constant buffer if it doesnt fit
+	while (size > constantBufferSize)
+	{
+		resizeConstantBuffer();
+	}
+	//map to the constant buffer so that we overwrite
+	D3D11_MAPPED_SUBRESOURCE ms;
+	devcon->Map(constantBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	//copy the new data into the buffer
+	memcpy(ms.pData, data, size);
+	//un map the buffer
+	devcon->Unmap(constantBuffer, NULL);
+}
+
+void GraphicsManager::setInstanceBufferData(void * data, unsigned int size, unsigned int stride)
+{
+	//resize the instance buffer if it doesnt fit
+	while (size > instanceBufferSize)
+	{
+		resizeInstanceBuffer();
+	}
+	//map to the instance buffer so that we overwrite
+	D3D11_MAPPED_SUBRESOURCE ms;
+	devcon->Map(instanceBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	//copy the new data into the buffer
+	memcpy(ms.pData, data, size);
+	//un map the buffer
+	devcon->Unmap(instanceBuffer, NULL);
+	UINT offset = 0;
+	devcon->IASetVertexBuffers(1, 1, &instanceBuffer, &stride, &offset);
+}
+
+void GraphicsManager::drawMesh(unsigned int meshResourceID, unsigned int count)
+{
+	GraphicsResource * resource = graphicsResources.at(meshResourceID);
+	//if the mesh id is valid
+	if (resource->getType() == RESOURCE_TYPE_MESH)
+	{
+		//get information about the mesh
+		Mesh * mesh = (Mesh*)resource;
+		// draw the mesh with the data in the instance buffer if its a used id
+		devcon->DrawIndexedInstanced(mesh->getIndexCount(), count, mesh->getIndexOffset(), mesh->getVertexOffset(), 0);
+	}
+	else
+	{
+		printf(resource->getName());
+		printf(" is not a mesh \n");
+	}
+}
+
+
+unsigned int GraphicsManager::getFreeGraphicsResourceSlot()
+{
+	for (unsigned int i = 0; i < graphicsResources.size(); i++)
+	{
+		if (graphicsResources.at(i) == NULL)
+		{
+			return i;
+		}
+	}
+	graphicsResources.push_back(NULL);
+	return graphicsResources.size() - 1;
+}
+
+unsigned int GraphicsManager::getFreeTextureSlot()
+{
+	vector<Texture*> textures;
+	for (unsigned int i = 0; i < graphicsResources.size(); i++)
+	{
+		if (graphicsResources.at(i) != NULL && graphicsResources.at(i)->getType() == RESOURCE_TYPE_TEXTURE)
+		{
+			textures.push_back((Texture*)graphicsResources.at(i));
+		}
+	}
+	unsigned int testSlot = 0;
+	while (testSlot < textureBufferSize)
+	{
+		bool filled = false;
+		for (unsigned int i = 0; i < textures.size() && !filled; i++)
+		{
+			if (textures.at(i)->getTextureIndex() == testSlot)
+			{
+				filled = true;
+			}
+		}
+		if (!filled)
+		{
+			return testSlot;
+		}
+		testSlot++;
+	}
+	resizeTextureArray();
+	return testSlot;
+}
+
+void GraphicsManager::fitMeshInFreeSpace(Mesh * mesh)
+{
+	fitMeshInIndexSpace(mesh);
+	fitMeshInVertexSpace(mesh);
+}
+
+void GraphicsManager::fitMeshInVertexSpace(Mesh * mesh)
+{
+	vector<Mesh*> meshes;
+	for (unsigned int i = 0; i < graphicsResources.size(); i++)
+	{
+		if (graphicsResources.at(i) != NULL && graphicsResources.at(i)->getType() == RESOURCE_TYPE_MESH)
+		{
+			meshes.push_back((Mesh*)graphicsResources.at(i));
+		}
+	}
+	unsigned int start = 0;
+	for (unsigned int i = 0; i < meshes.size(); i++)
+	{
+		if (meshes.at(i)->getVertexOffset() - start < (mesh->getVertexCount() * sizeof(float) * 8))
+		{
+			start = meshes.at(i)->getVertexOffset() + (meshes.at(i)->getVertexCount() * sizeof(float) * 8);
+			meshes.erase(meshes.begin() + i);
+			i = 0;
+		}
+	}
+	while (vertexBufferSize - start < mesh->getVertexCount() * sizeof(float) * 8)
+	{
+		resizeVertexBuffer();
+	}
+	mesh->setVertexOffset(start);
+}
+
+void GraphicsManager::fitMeshInIndexSpace(Mesh * mesh)
+{
+	vector<Mesh*> meshes;
+	for (unsigned int i = 0; i < graphicsResources.size(); i++)
+	{
+		if (graphicsResources.at(i) != NULL && graphicsResources.at(i)->getType() == RESOURCE_TYPE_MESH)
+		{
+			meshes.push_back((Mesh*)graphicsResources.at(i));
+		}
+	}
+	unsigned int start = 0;
+	for (unsigned int i = 0; i < meshes.size(); i++)
+	{
+		if (meshes.at(i)->getIndexOffset() - start < (mesh->getIndexCount() * sizeof(unsigned int)))
+		{
+			start = meshes.at(i)->getIndexOffset() + (meshes.at(i)->getIndexCount() * sizeof(unsigned int));
+			meshes.erase(meshes.begin() + i);
+			i = 0;
+		}
+	}
+	while (indexBufferSize - start < mesh->getIndexCount() * sizeof(unsigned int))
+	{
+		resizeIndexBuffer();
+	}
+	mesh->setIndexOffset(start);
+}
+
+void GraphicsManager::resizeTextureArray()
+{
+	if (textureResource != NULL)
+	{
+		textureResource->Release();
+		textureShaderView->Release();
+		textureBufferSize *= 2;
+		printf("resizing texture buffer to fit : %u bytes", constantBufferSize);
+	}
+	UINT channels = 4;
+	//stide is how many bytes in a row
+	UINT stride = (int)textureResolution.x * channels;
+	//size is how many bytes in a texture
+	UINT size = stride * (int)textureResolution.y;
+	//create the subresource data array to store the info about each texture
+	BYTE * textureData = new BYTE[size];
+	//create the subresource data
+	D3D11_SUBRESOURCE_DATA * subData = new D3D11_SUBRESOURCE_DATA[textureBufferSize];
+	for (unsigned int i = 0; i < textureBufferSize; i++)
+	{
+		subData[i].pSysMem = textureData;
+		subData[i].SysMemPitch = stride;
+		subData[i].SysMemSlicePitch = size;
+	}
+	//create the texture array
+	D3D11_TEXTURE2D_DESC desc;
+	ZeroMemory(&desc, sizeof(D3D11_TEXTURE2D_DESC));
+	desc.Width = (int)textureResolution.x;
+	desc.Height = (int)textureResolution.y;
+	desc.MipLevels = 1;
+	desc.ArraySize = textureBufferSize;
+	desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags = 0;
+	desc.MiscFlags = 0;
+	//create the texture 2d buffer
+	HRESULT res = dev->CreateTexture2D(&desc, subData, &textureResource);
+	//set up the shader view resourse as a texture 2d array
+	D3D11_SHADER_RESOURCE_VIEW_DESC sdesc;
+	ZeroMemory(&sdesc, sizeof(D3D11_SHADER_RESOURCE_VIEW_DESC));
+	sdesc.Texture2DArray.ArraySize = textureBufferSize;
+	sdesc.Texture2DArray.FirstArraySlice = 0;
+	sdesc.Texture2DArray.MipLevels = 1;
+	sdesc.Texture2DArray.MostDetailedMip = 0;
+	sdesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	sdesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+	//link the shader resource to the texture
+	dev->CreateShaderResourceView((ID3D11Resource *)textureResource, &sdesc, &textureShaderView);
+	//clean up data
+	delete[] textureData;
+	delete[] subData;
+	//rewrite the existing texture data
+	for (unsigned int i = 0; i < graphicsResources.size(); i++)
+	{
+		if (graphicsResources.at(i) != NULL && graphicsResources.at(i)->getType() == RESOURCE_TYPE_TEXTURE)
+		{
+			writeTexture((Texture*)graphicsResources.at(i));
+		}
+	}
+	devcon->PSSetShaderResources(0, 1, &textureShaderView);
+}
+
+void GraphicsManager::resizeConstantBuffer()
+{
+	if (constantBuffer != NULL)
+	{
+		constantBuffer->Release();
+		constantBufferSize *= 2;
+		printf("resizing constant buffer to fit : %u bytes \n", constantBufferSize);
+	}
+	D3D11_BUFFER_DESC bd;
+	ZeroMemory(&bd, sizeof(bd));
+	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	bd.Usage = D3D11_USAGE_DYNAMIC;
+	bd.ByteWidth = constantBufferSize;
+	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	dev->CreateBuffer(&bd, NULL, &constantBuffer);
+	devcon->VSSetConstantBuffers(0, 1, &constantBuffer);
+	devcon->PSSetConstantBuffers(0, 1, &constantBuffer);
+}
+
+void GraphicsManager::resizeInstanceBuffer()
+{
+	if (instanceBuffer != NULL)
+	{
+		instanceBuffer->Release();
+		instanceBufferSize *= 2;
+		printf("resizsing instance buffer to fit : %u bytes \n", instanceBufferSize);
+	}
+	D3D11_BUFFER_DESC bd;
+	ZeroMemory(&bd, sizeof(bd));
+	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	bd.Usage = D3D11_USAGE_DYNAMIC;
+	bd.ByteWidth = instanceBufferSize;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	dev->CreateBuffer(&bd, NULL, &instanceBuffer);
+}
+
+void GraphicsManager::resizeVertexBuffer()
+{
+	if (vertexBuffer != NULL)
+	{
+		vertexBuffer->Release();
+		vertexBufferSize *= 2;
+		printf("resizsing vertex buffer to fit : %u bytes \n", vertexBufferSize);
+	}
+	D3D11_BUFFER_DESC bd;
+	ZeroMemory(&bd, sizeof(bd));
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = vertexBufferSize;
+	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	dev->CreateBuffer(&bd, NULL, &vertexBuffer);
+	UINT offset = 0;
+	UINT stride = 8 * sizeof(float);
+	devcon->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+}
+
+void GraphicsManager::resizeIndexBuffer()
+{
+	if (indexBuffer != NULL)
+	{
+		indexBuffer->Release();
+		indexBufferSize *= 2;
+		printf("resizsing index buffer to fit : %u bytes \n", indexBufferSize);
+	}
+	D3D11_BUFFER_DESC bd;
+	ZeroMemory(&bd, sizeof(bd));
+	bd.Usage = D3D11_USAGE_DEFAULT;
+	bd.ByteWidth = indexBufferSize;
+	bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	HRESULT res = dev->CreateBuffer(&bd, NULL, &indexBuffer);
+	devcon->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 }

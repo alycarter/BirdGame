@@ -10,5 +10,6 @@ public:
 	SubState * getNextState();
 private:
 	bool needsToPause;
+	bool quitRequest;
 };
 

@@ -14,12 +14,12 @@ Scene::~Scene()
 
 void Scene::onUpdate(Time * time, Controls * controls)
 {
-	printf("scene update \n");
+	//printf("scene update \n");
 	if (controls->isKeyReleased(VK_RETURN))
 	{
 		needsToPause = true;
 	}
-	if (controls->isKeyReleased(VK_ESCAPE))
+	if (controls->isKeyReleased(VK_ESCAPE) || quitRequest)
 	{
 		RequestPop();
 	}
@@ -31,7 +31,7 @@ SubState * Scene::getNextState()
 	{
 		printf("pause \n");
 		needsToPause = false;
-		return new PauseScreen();
+		return new PauseScreen(&quitRequest);
 	}
 	return NULL;
 }

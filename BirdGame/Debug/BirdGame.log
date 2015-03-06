@@ -1,34 +1,8 @@
-﻿Build started 06/03/2015 08:18:27.
+﻿Build started 06/03/2015 08:31:14.
      1>Project "E:\directX\BirdGame\BirdGame\BirdGame.vcxproj" on node 2 (Build target(s)).
      1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt BirdGame.cpp Component.cpp Controls.cpp Entity.cpp Game.cpp GraphicsManager.cpp GraphicsResource.cpp InputLayoutReader.cpp MainGame.cpp Mesh.cpp Object.cpp ObjLoader.cpp PauseScreen.cpp Scene.cpp Shader.cpp State.cpp StateMachine.cpp SubState.cpp Texture.cpp Time.cpp Window.cpp
-         Window.cpp
-         Time.cpp
-         Texture.cpp
-         SubState.cpp
-         StateMachine.cpp
-         State.cpp
-         Shader.cpp
-         Scene.cpp
-         PauseScreen.cpp
-         ObjLoader.cpp
-         Object.cpp
-         Mesh.cpp
-         MainGame.cpp
-         InputLayoutReader.cpp
-         GraphicsResource.cpp
-         GraphicsManager.cpp
-     1>e:\directx\birdgame\birdgame\graphicsmanager.cpp(85): warning C4244: 'argument' : conversion from 'float' to 'UINT', possible loss of data
-     1>e:\directx\birdgame\birdgame\graphicsmanager.cpp(134): warning C4244: '=' : conversion from 'float' to 'UINT', possible loss of data
-     1>e:\directx\birdgame\birdgame\graphicsmanager.cpp(135): warning C4244: '=' : conversion from 'float' to 'UINT', possible loss of data
-         Game.cpp
-         Entity.cpp
-         Controls.cpp
-         Component.cpp
-         Generating Code...
-         Compiling...
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt BirdGame.cpp
          BirdGame.cpp
-         Generating Code...
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"E:\directX\BirdGame\Debug\BirdGame.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"E:\directX\BirdGame\Debug\BirdGame.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"E:\directX\BirdGame\Debug\BirdGame.lib" /MACHINE:X86 Debug\BirdGame.obj
          Debug\Component.obj
@@ -56,4 +30,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:08.04
+Time Elapsed 00:00:01.54

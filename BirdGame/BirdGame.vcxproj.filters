@@ -154,37 +154,35 @@
     <None Include="shaders\negative.hlsl">
       <Filter>shaders</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Object Include="obj\ant.obj">
+    <None Include="obj\ant.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\cone.obj">
+    </None>
+    <None Include="obj\cone.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\cube.obj">
+    </None>
+    <None Include="obj\cube.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\knot.obj">
+    </None>
+    <None Include="obj\knot.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\sphere.obj">
+    </None>
+    <None Include="obj\sphere.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\spit.obj">
+    </None>
+    <None Include="obj\spit.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\suzane.obj">
+    </None>
+    <None Include="obj\suzane.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\teapot.obj">
+    </None>
+    <None Include="obj\teapot.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\torus.obj">
+    </None>
+    <None Include="obj\torus.obj">
       <Filter>obj</Filter>
-    </Object>
-    <Object Include="obj\worker.obj">
+    </None>
+    <None Include="obj\worker.obj">
       <Filter>obj</Filter>
-    </Object>
+    </None>
   </ItemGroup>
 </Project>
